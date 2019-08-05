@@ -1,3 +1,5 @@
+use std::fmt;
+
 enum VMBytecode {
     IADD = 1, // int add
     ISUB = 2, // int sub
@@ -45,22 +47,90 @@ impl From<i32> for VMBytecode {
     }
 }
 
-struct VMInstruction {
-    name: [String;8],
+impl fmt::Display for VMBytecode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            VMBytecode::IADD => write!(f, "IADD"),
+            VMBytecode::ISUB => write!(f, "ISUB"),
+            VMBytecode::IMUL => write!(f, "IMUL"),
+            VMBytecode::ILT => write!(f, "ILT"),
+            VMBytecode::IEQ => write!(f, "IEQ"),
+            VMBytecode::BR => write!(f, "BR"),
+            VMBytecode::BRT => write!(f, "BRT"),
+            VMBytecode::BRF => write!(f, "BRF"),
+            VMBytecode::ICONST => write!(f, "ICONST"),
+            VMBytecode::LOAD => write!(f, "LOAD"),
+            VMBytecode::GLOAD => write!(f, "GLOAD"),
+            VMBytecode::STORE => write!(f, "STORE"),
+            VMBytecode::GSTORE => write!(f, "GSTORE"),
+            VMBytecode::PRINT => write!(f, "PRINT"),
+            VMBytecode::POP => write!(f, "POP"),
+            VMBytecode::CALL => write!(f, "CALL"),
+            VMBytecode::RET => write!(f, "RET"),
+            VMBytecode::HALT => write!(f, "HALT"),
+        }
+    }
+}
+
+struct VMInstruction<'a> {
+    name: &'a str,
     nargs: i32,
 
 }
 
-impl VMInstruction {
-    fn new(&self, name: [String;8], nargs: i32) -> Self {
+impl<'a> VMInstruction<'a> {
+    fn new(name: &'a str, nargs: i32) -> Self {
         VMInstruction {name: name, nargs: nargs}
     }
 }
 
-fn vm_exec(code: Vec<i32>, main: usize, size: usize) {
+static VM_INSTRUCTIONS: [VMInstruction; 19] = [
+    VMInstruction {name: "", nargs: 0},
+    VMInstruction {name: "IADD", nargs: 0},
+    VMInstruction {name: "ISUB", nargs: 0},
+    VMInstruction {name: "IMUL", nargs: 0},
+    VMInstruction {name: "ILT", nargs: 0},
+    VMInstruction {name: "IEQ", nargs: 0},
+    VMInstruction {name: "BR", nargs: 1},
+    VMInstruction {name: "BRT", nargs: 1},
+    VMInstruction {name: "BRF", nargs: 1},
+    VMInstruction {name: "ICONST", nargs: 1},
+    VMInstruction {name: "LOAD", nargs: 1},
+    VMInstruction {name: "GLOAD", nargs: 1},
+    VMInstruction {name: "STORE", nargs: 1},
+    VMInstruction {name: "GSTORE", nargs: 1},
+    VMInstruction {name: "PRINT", nargs: 0},
+    VMInstruction {name: "POP", nargs: 0},
+    VMInstruction {name: "CALL", nargs: 0},
+    VMInstruction {name: "RET", nargs: 0},
+    VMInstruction {name: "HALT", nargs: 0},
+];
+
+fn vm_print_instr<'a>(code: &'a Vec<i32>, ip: &usize) {
+    let op = code[*ip];
+    let instr: &VMInstruction = &VM_INSTRUCTIONS[op as usize];
+    println!("{}: {}", ip, instr.name);
+    if instr.nargs == 1 {
+        println!(" {}", code[ip + 1]);
+    } else if instr.nargs == 2 {
+        println!(" {}, {}", code[ip + 1], code[ip + 2]);
+    }
+}
+
+fn vm_print_stack<'a>(stack: &'a [i32], count: usize) {
+    unimplemented!();
+}
+
+fn vm_print_globals<'a>(globals: &'a Vec<i32>, count: usize) {
+    unimplemented!();
+}
+
+
+
+fn vm_exec(code: Vec<i32>, main: usize, size: usize, trace: bool) {
     let code: Vec<i32> = code;
     let mut stack: [i32; 100] = [0; 100];
-    let mut data: Vec<i32> = Vec::with_capacity(size);
+    let mut globals: Vec<i32>; // represents global storage
 
     let mut ip: usize = main; // instruction pointer register
     let mut fp: usize;        // frame pointer register
@@ -69,7 +139,11 @@ fn vm_exec(code: Vec<i32>, main: usize, size: usize) {
     let mut v: i32;
 
     while ip < code.len() {
-        let mut opcode: VMBytecode = VMBytecode::from(code[ip]);// fetch
+        let opcode: VMBytecode = VMBytecode::from(code[ip]); // fetch
+        let op: i32 = code[ip];
+        if trace {
+            vm_print_instr(&code, &ip);
+        }
         ip = ip + 1;
         match opcode {
             VMBytecode::ICONST => {
@@ -82,6 +156,12 @@ fn vm_exec(code: Vec<i32>, main: usize, size: usize) {
                 v = stack[sp as usize];
                 sp = sp - 1;
                 println!("{}", v);
+            },
+            VMBytecode::GLOAD => {
+            
+            },
+            VMBytecode::GSTORE => {
+            
             },
             VMBytecode::HALT => return,
             _ => return
@@ -101,7 +181,32 @@ mod tests {
             VMBytecode::PRINT as i32,
             VMBytecode::HALT as i32
         ];
-        vm_exec(hello, 0, 0);
+        vm_exec(hello, 0, 0, false);
+    }
+
+    #[test]
+    fn check_hello_exec_tracing() {
+        let hello = vec![
+            VMBytecode::ICONST as i32, 1234, 
+            VMBytecode::PRINT as i32,
+            VMBytecode::HALT as i32
+        ];
+        vm_exec(hello, 0, 0, true);
+    }
+
+    #[test]
+    fn check_global_storage() {
+        let global_storage = vec![
+            VMBytecode::ICONST as i32, 99,
+            VMBytecode::GSTORE as i32, 0,
+            VMBytecode::GLOAD as i32, 0,
+            VMBytecode::PRINT as i32,
+            VMBytecode::HALT as i32
+        ];
+
+        let datasize = 1;
+        let mainip = 0;
+        vm_exec(global_storage, mainip, datasize, true);
     }
 
 }
