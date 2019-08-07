@@ -117,7 +117,7 @@ fn vm_print_instr<'a>(code: &'a Vec<i32>, ip: &usize) {
     }
 }
 
-fn vm_print_stack<'a>(stack: &'a [i32], count: usize) {
+fn vm_print_stack<'a>(stack: &'a [i32; 100], count: usize) {
     unimplemented!();
 }
 
@@ -125,18 +125,32 @@ fn vm_print_globals<'a>(globals: &'a Vec<i32>, count: usize) {
     unimplemented!();
 }
 
+fn wrapped_over_i32(sp: &i32, to_add: bool) -> i32{
+    if *sp == 0 {
+        (*sp + 100) - 1
+    } else if *sp == 99 {
+        *sp - 99
+    } else if to_add {
+        *sp + 1
+    } else {
+        *sp - 1
+    }
+}
 
-
-fn vm_exec(code: Vec<i32>, main: usize, size: usize, trace: bool) {
+fn vm_exec(code: Vec<i32>, main: usize, nglobals: usize, trace: bool) {
     let code: Vec<i32> = code;
     let mut stack: [i32; 100] = [0; 100];
-    let mut globals: Vec<i32>; // represents global storage
+    let mut globals: Vec<i32> = Vec::with_capacity(nglobals); // represents global storage
 
     let mut ip: usize = main; // instruction pointer register
-    let mut fp: usize;        // frame pointer register
-    let mut sp: i32 = -1;   // stack pointer register
+    let mut fp: i32 = -1;        // frame pointer register
+    let mut sp: i32 = -1;        // stack pointer register
    
-    let mut v: i32;
+    let mut v: i32 = 0;
+    let mut a: i32 = 0;
+    let mut b: i32 = 0;
+    let mut addr: i32 = 0;
+    let mut offset: i32 = 0;
 
     while ip < code.len() {
         let opcode: VMBytecode = VMBytecode::from(code[ip]); // fetch
@@ -146,21 +160,75 @@ fn vm_exec(code: Vec<i32>, main: usize, size: usize, trace: bool) {
         }
         ip = ip + 1;
         match opcode {
+            VMBytecode::IADD => {
+                b = stack[sp as usize];
+                sp = wrapped_over_i32(&sp, false);
+                a = stack[sp as usize];
+                sp = wrapped_over_i32(&sp, false);               
+                stack[sp as usize] = a + b;
+            },
+            VMBytecode::ISUB => {
+                b = stack[sp as usize];
+                sp = wrapped_over_i32(&sp, false);
+                a = stack[sp as usize];
+                sp = wrapped_over_i32(&sp, false); 
+                stack[sp as usize] = a - b;
+ 
+            },
+            VMBytecode::IMUL => {
+                b = stack[sp as usize];
+                sp = wrapped_over_i32(&sp, false);
+                a = stack[sp as usize];
+                sp = wrapped_over_i32(&sp, false); 
+                stack[sp as usize] = a * b;
+ 
+            },
+            VMBytecode::ILT => {
+            
+            },
+            VMBytecode::IEQ => {
+            
+            },
+            VMBytecode::BR => {
+            
+            },
+            VMBytecode::BRT => {
+            
+            },
+            VMBytecode::BRF => {
+            
+            },
             VMBytecode::ICONST => {
                 v = code[ip];
                 ip = ip + 1;
-                sp = sp + 1;
+                sp = wrapped_over_i32(&sp, true); 
                 stack[sp as usize] = v;
             },
-            VMBytecode::PRINT => {
-                v = stack[sp as usize];
-                sp = sp - 1;
-                println!("{}", v);
+            VMBytecode::LOAD => {
+            
             },
+            
             VMBytecode::GLOAD => {
             
             },
+            VMBytecode::STORE => {
+            
+            },
             VMBytecode::GSTORE => {
+            
+            },
+            VMBytecode::PRINT => {
+                v = stack[sp as usize];
+                sp = wrapped_over_i32(&sp, false);
+                println!("{}", v);
+            },
+            VMBytecode::POP => {
+            
+            },
+            VMBytecode::CALL => {
+            
+            },
+            VMBytecode::RET => {
             
             },
             VMBytecode::HALT => return,
@@ -175,6 +243,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore]
     fn check_hello_exec() {
         let hello = vec![
             VMBytecode::ICONST as i32, 1234, 
@@ -185,6 +254,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn check_hello_exec_tracing() {
         let hello = vec![
             VMBytecode::ICONST as i32, 1234, 
@@ -195,6 +265,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn check_global_storage() {
         let global_storage = vec![
             VMBytecode::ICONST as i32, 99,
@@ -207,6 +278,67 @@ mod tests {
         let datasize = 1;
         let mainip = 0;
         vm_exec(global_storage, mainip, datasize, true);
+    }
+
+    #[test]
+    #[ignore]
+    fn check_add() {
+        let add_fn = vec![
+            VMBytecode::ICONST as i32, 1,
+            VMBytecode::ICONST as i32, 2,
+            VMBytecode::IADD as i32,
+            VMBytecode::PRINT as i32,
+            VMBytecode::HALT as i32
+        ];
+
+        vm_exec(add_fn, 0, 0, true);
+    }
+
+    #[test]
+    #[ignore]
+    fn check_sub() {
+        let sub_fn = vec![
+            VMBytecode::ICONST as i32, 1,
+            VMBytecode::ICONST as i32, 2,
+            VMBytecode::ISUB as i32,
+            VMBytecode::PRINT as i32,
+            VMBytecode::HALT as i32
+        ];
+
+        vm_exec(sub_fn, 0, 0, true);
+
+    }
+
+    #[test]
+    #[ignore]
+    fn check_mul() {
+        let mul_fn = vec![
+            VMBytecode::ICONST as i32, 1,
+            VMBytecode::ICONST as i32, 2,
+            VMBytecode::IMUL as i32,
+            VMBytecode::PRINT as i32,
+            VMBytecode::HALT as i32
+        ];
+
+        vm_exec(mul_fn, 0, 0, true);
+ 
+    }
+
+    #[test]
+    // #[ignore]
+    fn check_add_sub_mul() {
+       let asm_fn = vec![
+           VMBytecode::ICONST as i32, 1,
+           VMBytecode::ICONST as i32, 2,
+           VMBytecode::IADD as i32, 
+           VMBytecode::ICONST as i32, 3,
+           VMBytecode::ISUB as i32, 
+           VMBytecode::ICONST as i32, 1,
+           VMBytecode::IMUL as i32,
+           VMBytecode::PRINT as i32,
+           VMBytecode::HALT as i32
+       ];
+       vm_exec(asm_fn, 0, 0, true);
     }
 
 }
